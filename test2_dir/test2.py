@@ -18,16 +18,16 @@ for stream in data:
 
     print("stream name",stream_name,"\noriginal timestamps",stream['time_stamps'])
     clock_offset_ini = stream['footer']['info']['clock_offsets'][0]['offset'][0]['time'][0]
-    print("clock offset",clock_offset_ini)
-    print("namecheck",'Care' in stream_name)
+    #print("clock offset",clock_offset_ini)
+    #print("namecheck",'Care' in stream_name)
 
     if('Care' in stream_name):
         #print("input start time")
         first_timestamp=stream['time_stamps'][0]
-        print("calc check",float(first_timestamp),float(clock_offset_ini))
+        #print("calc check",float(first_timestamp),float(clock_offset_ini))
         start_time_offset = float(clock_offset_ini) - float(first_timestamp)
         stream['time_stamps'] = [x + start_time_offset for x in stream['time_stamps']]
-        print("new timestamp",stream['time_stamps'][:9])
+        #print("new timestamp",stream['time_stamps'][:9])
 
     if isinstance(y, list):
         # list of strings, draw one vertical line for each marker
@@ -36,11 +36,17 @@ for stream in data:
             print(f'Marker "{marker[0]}" @ {timestamp:.2f}s')
     elif isinstance(y, np.ndarray):
         # numeric data, draw as lines
-        print("y",y)
-        plt.plot(stream['time_stamps'], y)
+        if('vital2' in stream_name):# numeric data, draw as lines
+            print("not draw")
+        else:
+            #plt.plot(stream['time_stamps'], y[11])
+            #plt.plot(stream['time_stamps'], y[14])
+            if('vital' in stream_name):# numeric data, draw as lines
+                plt.plot(stream['time_stamps'], y[:,11])#sys
+                plt.plot(stream['time_stamps'], y[:,14])#hr
+            #else:
+            #    plt.plot(stream['time_stamps'], y)
 
-
-        plt.savefig("./"+dirname+"/save_"+str(number)+".png")
-        number=number+1
     else:
         raise RuntimeError('Unknown stream format')
+    plt.savefig("./"+dirname+"/save.png")
