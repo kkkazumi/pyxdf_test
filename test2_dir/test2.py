@@ -6,6 +6,31 @@ VITAL_SYS_CHANNEL=11
 VITAL_HR_CHANNEL=14
 SV=70
 
+def check_marker(org_marker):
+    new_marker = np.zeros((1,2))
+    count=0
+    for i in org_marker:
+        print("check marker:",i)
+        print("select: 0)keep, 1)delete, 2)change")
+        mode=int(input())
+        if(mode==0):
+            if(count==0):
+                new_marker[0]=i
+                count=1
+            else:
+                new_marker=np.vstack((new_marker,i))
+        elif(mode==2):
+            print("input new value")
+            new_val = int(input())
+            i[1]=new_val
+            if(count==0):
+                new_marker[0]=i
+                count=1
+            else:
+                new_marker=np.vstack((new_marker,i))
+        print("new marker",new_marker)
+    return new_marker
+
 # Aの値が特定の範囲にある場合にBの値を抽出する関数
 def extract_values(A, B):
     SP_BP = []
@@ -70,6 +95,9 @@ for stream in data:
         else:
             plt.plot(stream['time_stamps'], y)
             marker=attach_timestamp(y[:,0],stream['time_stamps'])
+            print("marker data",marker)
+            marker=check_marker(marker)
+            print("new marker data",marker)
 
     else:
         raise RuntimeError('Unknown stream format')
