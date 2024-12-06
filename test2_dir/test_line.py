@@ -60,7 +60,7 @@ def attach_timestamp(org_array,timestamp_stream):
     new_array[:,1] = org_array
     new_array[:,0]= timestamp_stream
     return new_array
-                
+
 print("input the dirname")
 dirname = input()
 filename = "./"+dirname+"/"+dirname+"data.xdf"
@@ -95,6 +95,7 @@ for stream in data:
                 svr=attach_timestamp(_svr,stream['time_stamps'])
                 co=attach_timestamp(_co,stream['time_stamps'])
                 sys=attach_timestamp(_sys,stream['time_stamps'])
+                print("svr",svr.shape,"co",co.shape,"sys",sys.shape)
 
                 plt.subplot(GRAPH_VER,GRAPH_HOR,1)
                 plt.plot(stream['time_stamps'], svr[:,1],label="svr")
@@ -112,6 +113,23 @@ for stream in data:
 
             marker=attach_timestamp(y[:,0],stream['time_stamps'])
             print("marker data",marker)
+            # タイムスタンプを抽出
+            timestamps = [row[0] for row in marker]
+            labels = [row[1] for row in marker]
+            # 各タイムスタンプで色分けされた縦線を引く
+            plt.figure(figsize=(10, 6))
+            for ts, label in zip(timestamps, labels):
+                if label in [1010, 1500]:
+                	color = 'black'
+                elif label in [200, 250]:
+                	color = 'green'
+                elif label in [300, 350]:
+                	color = 'red'
+                else:
+                	color = 'blue'
+                for i in range(GRAPH_VER):
+                	plt.subplot(GRAPH_VER,GRAPH_HOR,i+1)
+                	plt.axvline(x=ts, color=color, linestyle='--')
             #marker=check_marker(marker)
             #print("new marker data",marker)
 
