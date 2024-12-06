@@ -6,6 +6,10 @@ VITAL_SYS_CHANNEL=11
 VITAL_HR_CHANNEL=14
 SV=70
 
+#graph drawing
+GRAPH_VER = 3
+GRAPH_HOR = 1
+
 def check_marker(org_marker):
     new_marker = np.zeros((1,2))
     count=0
@@ -91,13 +95,25 @@ for stream in data:
                 svr=attach_timestamp(_svr,stream['time_stamps'])
                 co=attach_timestamp(_co,stream['time_stamps'])
                 sys=attach_timestamp(_sys,stream['time_stamps'])
-                print("svr",svr)
+
+                plt.subplot(GRAPH_VER,GRAPH_HOR,1)
+                plt.plot(stream['time_stamps'], svr[:,1],label="svr")
+                plt.legend()
+
+                plt.subplot(GRAPH_VER,GRAPH_HOR,2)
+                plt.plot(stream['time_stamps'], co[:,1],label="co")
+                plt.legend()
+
+                plt.subplot(GRAPH_VER,GRAPH_HOR,3)
+                plt.plot(stream['time_stamps'], sys[:,1],label="sys")
+                plt.legend()
         else:
-            plt.plot(stream['time_stamps'], y)
+            #plt.plot(stream['time_stamps'], y)
+
             marker=attach_timestamp(y[:,0],stream['time_stamps'])
             print("marker data",marker)
-            marker=check_marker(marker)
-            print("new marker data",marker)
+            #marker=check_marker(marker)
+            #print("new marker data",marker)
 
     else:
         raise RuntimeError('Unknown stream format')
