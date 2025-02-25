@@ -1,7 +1,9 @@
 import pyxdf
 import matplotlib.pyplot as plt
+from matplotlib import cm
 import numpy as np
 import os
+import scipy.stats
 
 VITAL_SYS_CHANNEL=11
 VITAL_HR_CHANNEL=14
@@ -17,32 +19,29 @@ GRAPH_SVR = 3
 def get_ratio(NH_data,RB_data,HM_data,baseline):
     return np.log(np.array(NH_data)/baseline),np.log(np.array(RB_data)/baseline),np.log(np.array(HM_data)/baseline)
 
-def check_marker(org_marker,filename):
+def check_marker(org_marker,filename,old_filename):
     new_marker = np.zeros((1,2))
     count=0
     if not os.path.exists(filename):
-        for i in org_marker:
-            print("check marker:",i)
-            print("select: 0)keep, 1)delete, 2)change")
-            mode=int(input())
-            if(mode==0):
-                if(count==0):
-                    new_marker[0]=i
-                    count=1
-                else:
-                    new_marker=np.vstack((new_marker,i))
-            elif(mode==2):
-                print("input new value")
-                new_val = int(input())
-                i[1]=new_val
-                if(count==0):
-                    new_marker[0]=i
-                    count=1
-                else:
-                    new_marker=np.vstack((new_marker,i))
-        print("new marker",new_marker)
+        new_marker = np.loadtxt(old_filename,delimiter=",")
+        for i in new_marker:
+            #print("check marker:",i)
+            #input()
+            if(i[1]==1010):
+                i[0]=i[0]+76
+            elif(i[1]==1050):
+                i[0]=i[0]+136
+            elif(i[1]==2010):
+                i[0]=i[0]+76
+            elif(i[1]==2050):
+                i[0]=i[0]+136
+            elif(i[1]==3010):
+                i[0]=i[0]+76
+            elif(i[1]==3050):
+                i[0]=i[0]+136
     else:
         new_marker = np.loadtxt(filename,delimiter=",")
+    print("new_marker",new_marker)
     return new_marker
 
 
@@ -122,8 +121,9 @@ for stream in data:
             #plt.plot(stream['time_stamps'], y)
             marker=attach_timestamp(y[:,0],stream['time_stamps'])
             #print("marker data",marker)
-            filename = './'+dirname+'/new_marker.csv'
-            marker=check_marker(marker,filename)
+            filename = './'+dirname+'/new_taskmarker.csv'
+            old_filename= './'+dirname+'/new_marker.csv'
+            marker=check_marker(marker,filename,old_filename)
             np.savetxt(filename, marker, delimiter=',')
 
 
@@ -146,8 +146,30 @@ plt.plot(NH_SVR_r,NH_CO_r,label="nohint",linestyle=":")
 plt.plot(RB_SVR_r,RB_CO_r,label="robot",linestyle="-.")
 plt.plot(HM_SVR_r,HM_CO_r,label="human")
 
-plt.xlim(-1,1)
-plt.ylim(-1,1)
+plt.scatter(NH_SVR_r,NH_CO_r,
+    c=np.array(tNH_CO),
+    cmap=cm.Blues,
+    marker='o',
+    label="nohint",linestyle=":")
+ax=plt.colorbar()
+
+plt.scatter(RB_SVR_r,RB_CO_r,
+    c=np.array(tRB_CO),
+    cmap=cm.Reds,
+    marker='x',
+    label="robot",linestyle="-.")
+ax=plt.colorbar()
+
+plt.scatter(HM_SVR_r,HM_CO_r,
+    c=np.array(tHM_CO),
+    cmap=cm.Greens,
+    marker='v',
+    label="human")
+
+ax=plt.colorbar()
+
+#plt.xlim(-1,1)
+#plt.ylim(-1,1)
 plt.xlabel("logTPR_R")
 plt.ylabel("logCO_R")
 plt.legend()
