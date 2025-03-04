@@ -17,7 +17,7 @@ GRAPH_SYS = 1
 GRAPH_CO = 2
 GRAPH_SVR = 3
 
-ROT_THETA=-45
+ROT_THETA=45
 
 def calculate_centroid(X, Y):
     centroid_X = np.mean(X)
@@ -166,6 +166,11 @@ NH_SVR_r,RB_SVR_r,HM_SVR_r = get_ratio(NH_SVR,RB_SVR,HM_SVR,svr_baseline)
 rotated_NH = rotate_45_degrees(NH_SVR_r,NH_CO_r)
 rotated_RB = rotate_45_degrees(RB_SVR_r,RB_CO_r)
 rotated_HM = rotate_45_degrees(HM_SVR_r,HM_CO_r)
+
+#plt.plot(tNH_SVR,NH_CO_r*(1.0/math.sqrt(2))-NH_SVR_r*(1.0/math.sqrt(2)),label="nohint",linestyle=":")
+#plt.plot(tRB_SVR,RB_CO_r/math.sqrt(2)-RB_SVR_r/math.sqrt(2),label="nohint",linestyle=":")
+#plt.plot(tHM_SVR,HM_CO_r/math.sqrt(2)-HM_SVR_r/math.sqrt(2),label="nohint",linestyle=":")
+
 plt.plot(tNH_SVR,rotated_NH[0],label="nohint",linestyle=":")
 plt.plot(tRB_SVR,rotated_RB[0],label="robot",linestyle="-.")
 plt.plot(tHM_SVR,rotated_HM[0],label="human")
@@ -176,4 +181,5 @@ plt.xlabel("time [s]")
 plt.ylabel("HP")
 plt.legend()
 
+#plt.savefig("./"+dirname+"/"+dirname+"_HP_timeseries.png")
 plt.savefig("./"+dirname+"/"+dirname+"_HP_timeseries.eps")
