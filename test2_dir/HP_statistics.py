@@ -18,7 +18,7 @@ GRAPH_SYS = 1
 GRAPH_CO = 2
 GRAPH_SVR = 3
 
-ROT_THETA=-45
+ROT_THETA=45
 
 def extract(X,t):
     array = np.zeros_like(X.T)

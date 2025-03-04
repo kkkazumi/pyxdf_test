@@ -181,5 +181,5 @@ plt.xlabel("time [s]")
 plt.ylabel("HP")
 plt.legend()
 
-#plt.savefig("./"+dirname+"/"+dirname+"_HP_timeseries.png")
-plt.savefig("./"+dirname+"/"+dirname+"_HP_timeseries.eps")
+plt.savefig("./"+dirname+"/"+dirname+"_HP_timeseries.png")
+#plt.savefig("./"+dirname+"/"+dirname+"_HP_timeseries.eps")

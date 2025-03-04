@@ -1,5 +1,6 @@
 import csv
 import matplotlib.pyplot as plt
+from scipy.stats import ttest_ind,mannwhitneyu
 
 def get_data(filename):
     y_values_from_csv = []
@@ -17,6 +18,15 @@ User2_RB=get_data("./028/028_y_valuesRB.csv")
 User2_HM=get_data("./028/028_y_valuesHM.csv")
 User3_RB=get_data("./030/030_y_valuesRB.csv")
 User3_HM=get_data("./030/030_y_valuesHM.csv")
+
+print("hp User1 RB vs HM: mannwhitneyu, p_value",mannwhitneyu(User1_RB, User1_HM))
+print("hp User2 RB vs HM: mannwhitneyu, p_value",mannwhitneyu(User2_RB, User2_HM))
+print("hp User3 RB vs HM: mannwhitneyu, p_value",mannwhitneyu(User3_RB, User3_HM))
+
+print("hp User1 RB vs HM: t_stat, p_value",ttest_ind(User1_RB, User1_HM))
+print("hp User2 RB vs HM: t_stat, p_value",ttest_ind(User2_RB, User2_HM))
+print("hp User3 RB vs HM: t_stat, p_value",ttest_ind(User3_RB, User3_HM))
+input()
 
 data = [User1_RB, User1_HM, User2_RB, User2_HM, User3_RB, User3_HM]
 labels = ['User1', 'User1', 'User2', 'User2', 'User3', 'User3']
@@ -42,4 +52,5 @@ plt.legend(handles=[plt.Line2D([0], [0], color='red', lw=4),
                     plt.Line2D([0], [0], color='green', lw=4)],
            labels=['robot', 'human'])
 
-plt.savefig("statistics_test.eps")
+#plt.savefig("statistics_test.eps")
+plt.savefig("statistics_test.png")
