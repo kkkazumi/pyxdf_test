@@ -183,3 +183,25 @@ plt.legend()
 
 plt.savefig("./"+dirname+"/"+dirname+"_HP_timeseries.png")
 #plt.savefig("./"+dirname+"/"+dirname+"_HP_timeseries.eps")
+
+# --- ここまであなたのコードそのまま ---
+
+# 保存フォルダ
+save_dir = "./" + dirname + "/"
+
+# NH の時系列データ保存
+nh_data = np.vstack([tNH_SVR, rotated_NH[0]]).T
+np.savetxt(save_dir + "NH_timeseries_raw.csv",
+           nh_data, delimiter=",", header="time,HP_NH", comments='')
+
+# RB の時系列データ保存
+rb_data = np.vstack([tRB_SVR, rotated_RB[0]]).T
+np.savetxt(save_dir + "RB_timeseries_raw.csv",
+           rb_data, delimiter=",", header="time,HP_RB", comments='')
+
+# HM の時系列データ保存
+hm_data = np.vstack([tHM_SVR, rotated_HM[0]]).T
+np.savetxt(save_dir + "HM_timeseries_raw.csv",
+           hm_data, delimiter=",", header="time,HP_HM", comments='')
+
+print("Saved NH/RB/HM raw timeseries to:", save_dir)
