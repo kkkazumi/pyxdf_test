@@ -3,30 +3,93 @@ from scipy.interpolate import interp1d
 from patsy import dmatrix
 import matplotlib.pyplot as plt
 
-# --- HP重みを計算する関数（NH/RB/HM共通） ---
-def compute_hp_weights(timeseries_path):
-    data = np.loadtxt(timeseries_path, delimiter=",", skiprows=1)
+# --- AIC/BIC計算 ---
+def compute_aic_bic(residuals, k):
+    n = len(residuals)
+    rss = np.sum(residuals**2)
+    aic = n * np.log(rss/n) + 2 * k
+    bic = n * np.log(rss/n) + k * np.log(n)
+    return aic, bic
+
+# --- 全ユーザの時系列を使って df を探索 ---
+def find_best_df_all_users(dirnames):
+
+    df_candidates = range(4, 16)  # ★ df=4〜15
+    best_df = None
+    best_rms = 1e18
+
+    all_t = []
+    all_hp = []
+
+    for dirname in dirnames:
+        for cond in ["NH", "RB", "HM"]:
+            path = f"./{dirname}/{cond}_timeseries_raw.csv"
+            data = np.loadtxt(path, delimiter=",", skiprows=1)
+            all_t.append(data[:,0])
+            all_hp.append(data[:,1])
+
+    for df in df_candidates:
+        total_rss = 0
+        total_n = 0
+
+        for t, hp in zip(all_t, all_hp):
+
+            t_new = np.arange(0, 60.0, 0.1)
+            f_interp = interp1d(t, hp, kind='linear', fill_value="extrapolate")
+            interpolated_hp = f_interp(t_new)
+
+            smoothed_hp = np.convolve(interpolated_hp,
+                                      np.ones(10)/10,
+                                      mode='same')
+
+            spline_basis = np.asarray(
+                dmatrix(f"bs(t_new, df={df}, degree=3, include_intercept=False)",
+                        {"t_new": t_new}, return_type='dataframe')
+            )
+
+            w_spline, _, _, _ = np.linalg.lstsq(spline_basis, smoothed_hp, rcond=None)
+            fitted_spline = spline_basis @ w_spline
+
+            fitted_on_t = np.interp(t, t_new, fitted_spline)
+            residuals = hp - fitted_on_t
+
+            total_rss += np.sum(residuals**2)
+            total_n += len(residuals)
+
+        rms = np.sqrt(total_rss / total_n)
+        print(f"df={df}: RMS={rms:.4f}")
+
+        if rms < best_rms:
+            best_rms = rms
+            best_df = df
+
+    print(f"\n=== 全ユーザ共通の最適df = {best_df} (RMS={best_rms:.4f}) ===")
+    return best_df
+
+# --- 共通dfで特徴量とFittingを計算 ---
+def compute_hp_weights(path, df):
+
+    data = np.loadtxt(path, delimiter=",", skiprows=1)
     t = data[:,0]
     hp = data[:,1]
 
-    # 補間
     t_new = np.arange(0, 60.0, 0.1)
     f_interp = interp1d(t, hp, kind='linear', fill_value="extrapolate")
     interpolated_hp = f_interp(t_new)
 
-    # 移動平均
-    window_size = 10
-    kernel = np.ones(window_size) / window_size
-    smoothed_hp = np.convolve(interpolated_hp, kernel, mode='same')
+    smoothed_hp = np.convolve(interpolated_hp,
+                              np.ones(10)/10,
+                              mode='same')
 
-    # B-spline
     spline_basis = np.asarray(
-        dmatrix("bs(t_new, df=6, degree=3, include_intercept=False)",
+        dmatrix(f"bs(t_new, df={df}, degree=3, include_intercept=False)",
                 {"t_new": t_new}, return_type='dataframe')
     )
     w_spline, _, _, _ = np.linalg.lstsq(spline_basis, smoothed_hp, rcond=None)
+    fitted_spline = spline_basis @ w_spline
+    fitted_spline_on_t = np.interp(t, t_new, fitted_spline)
+    residual_spline = hp - fitted_spline_on_t
 
-    # Polynomial（4次）
     poly_basis = np.vstack([
         np.ones_like(t_new),
         t_new,
@@ -35,83 +98,92 @@ def compute_hp_weights(timeseries_path):
         t_new**4
     ]).T
     w_poly, _, _, _ = np.linalg.lstsq(poly_basis, smoothed_hp, rcond=None)
+    fitted_poly = poly_basis @ w_poly
+    fitted_poly_on_t = np.interp(t, t_new, fitted_poly)
+    residual_poly = hp - fitted_poly_on_t
 
-    return w_spline, w_poly, t, hp, t_new, interpolated_hp, smoothed_hp, spline_basis, poly_basis
+    return {
+        "t": t,
+        "hp": hp,
+        "t_new": t_new,
+        "interpolated": interpolated_hp,
+        "smoothed": smoothed_hp,
+        "spline_basis": spline_basis,
+        "w_spline": w_spline,
+        "fitted_spline": fitted_spline,
+        "residual_spline": residual_spline,
+        "poly_basis": poly_basis,
+        "w_poly": w_poly,
+        "fitted_poly": fitted_poly,
+        "residual_poly": residual_poly,
+        "df": df
+    }
 
+# --- Fittingグラフ ---
+def plot_fit(result, title, save_path):
+    t = result["t"]
+    hp = result["hp"]
+    t_new = result["t_new"]
+    interpolated = result["interpolated"]
+    smoothed = result["smoothed"]
+    spline_basis = result["spline_basis"]
+    poly_basis = result["poly_basis"]
+    w_spline = result["w_spline"]
+    w_poly = result["w_poly"]
+    df = result["df"]
 
-# --- 1) dirname をユーザーに聞く ---
-dirname = input("解析するディレクトリ名を入力してください： ")
+    plt.figure(figsize=(10,5))
+    plt.plot(t, hp, 'o', markersize=3, label="Original HP", alpha=0.6)
+    plt.plot(t_new, interpolated, '-', label="Interpolated", alpha=0.5)
+    plt.plot(t_new, smoothed, '-', label="Smoothed", linewidth=2)
+    plt.plot(t_new, spline_basis @ w_spline, '-', label=f"Spline (df={df})", linewidth=2)
+    plt.plot(t_new, poly_basis @ w_poly, '--', label="Polynomial 4th", linewidth=2)
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(save_path)
+    plt.close()
+    print("保存:", save_path)
 
-# --- 2) NH / RB / HM の時系列データパス ---
-nh_path = f"./{dirname}/NH_timeseries_raw.csv"
-rb_path = f"./{dirname}/RB_timeseries_raw.csv"
-hm_path = f"./{dirname}/HM_timeseries_raw.csv"
+# --- 残差グラフ ---
+def plot_residual(result, title, save_path):
+    t = result["t"]
+    plt.figure(figsize=(10,4))
+    plt.plot(t, result["residual_spline"], label="Residual (Spline)", alpha=0.7)
+    plt.plot(t, result["residual_poly"], label="Residual (Polynomial)", alpha=0.7)
+    plt.axhline(0, color="black")
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(save_path)
+    plt.close()
+    print("保存:", save_path)
 
-print("読み込み中:", nh_path)
+# --- メイン処理 ---
+dirnames = ["001","003","013","015","018","030","031","034","035","040","043","044","045","046","047"]
 
-# --- 3) NH / RB / HM の重みを計算 ---
-nh_w_spline, nh_w_poly, t, hp, t_new, interpolated_hp, smoothed_hp, spline_basis, poly_basis = compute_hp_weights(nh_path)
-rb_w_spline, rb_w_poly, *_ = compute_hp_weights(rb_path)
-hm_w_spline, hm_w_poly, *_ = compute_hp_weights(hm_path)
+# 1) 全ユーザで df を決める
+best_df = find_best_df_all_users(dirnames)
 
-# --- 4) 重みを保存（NH / RB / HM） ---
-header = "bspline,poly"
+# 2) 全ユーザの特徴量とグラフを作成
+for dirname in dirnames:
+    for cond in ["NH", "RB", "HM"]:
+        path = f"./{dirname}/{cond}_timeseries_raw.csv"
+        result = compute_hp_weights(path, best_df)
 
-def save_weights(name, w_spline, w_poly):
-    # 横方向に結合（正しい）
-    weights_vector = np.hstack([w_spline, w_poly])
+        # 重み保存
+        weights_vector = np.hstack([result["w_spline"], result["w_poly"]])
+        np.savetxt(f"./{dirname}/{cond}_HP_basis_weights_all.csv",
+                   weights_vector.reshape(1, -1),
+                   delimiter=",",
+                   header="bspline1,bspline2,bspline3,bspline4,bspline5,bspline6,bspline7,poly1,poly2,poly3,poly4,poly5",
+                   comments="")
+        print(f"{dirname} {cond} 保存完了")
 
-    # 1行12列で保存
-    np.savetxt(f"./{dirname}/{name}_HP_basis_weights_all.csv",
-               weights_vector.reshape(1, -1),
-               delimiter=",",
-               header="bspline1,bspline2,bspline3,bspline4,bspline5,bspline6,bspline7,poly1,poly2,poly3,poly4,poly5",
-               comments="")
-    print(f"{name} の重みを保存しました:", f"./{dirname}/{name}_HP_basis_weights_all.csv")
+        # Fittingグラフ（★ NH / RB / HM の3枚）
+        plot_fit(result,
+                 f"{cond} HP Fit (df={best_df})",
+                 f"./{dirname}/{cond}_HP_fit.png")
 
-
-save_weights("NH", nh_w_spline, nh_w_poly)
-save_weights("RB", rb_w_spline, rb_w_poly)
-save_weights("HM", hm_w_spline, hm_w_poly)
-
-# --- 5) 差分（RB−NH, HM−NH）を保存 ---
-rb_diff = np.hstack([rb_w_spline - nh_w_spline,
-                     rb_w_poly - nh_w_poly])
-
-hm_diff = np.hstack([hm_w_spline - nh_w_spline,
-                     hm_w_poly - nh_w_poly])
-
-np.savetxt(f"./{dirname}/RB_minus_NH_weights.csv",
-           rb_diff.reshape(1, -1),
-           delimiter=",",
-           header="bspline1,bspline2,bspline3,bspline4,bspline5,bspline6,bspline7,poly1,poly2,poly3,poly4,poly5",
-           comments="")
-
-np.savetxt(f"./{dirname}/HM_minus_NH_weights.csv",
-           hm_diff.reshape(1, -1),
-           delimiter=",",
-           header="bspline1,bspline2,bspline3,bspline4,bspline5,bspline6,bspline7,poly1,poly2,poly3,poly4,poly5",
-           comments="")
-
-print("差分（RB−NH, HM−NH）を保存しました")
-
-
-# --- 6) グラフ描画（NHのみ） ---
-plt.figure(figsize=(10,5))
-
-plt.plot(t, hp, 'o', markersize=3, label="Original NH HP", alpha=0.6)
-plt.plot(t_new, interpolated_hp, '-', label="Interpolated (0.1s)", alpha=0.5)
-plt.plot(t_new, smoothed_hp, '-', label="Smoothed (1s MA)", linewidth=2)
-plt.plot(t_new, spline_basis @ nh_w_spline, '-', label="Fitted (B-spline)", linewidth=2)
-plt.plot(t_new, poly_basis @ nh_w_poly, '--', label="Fitted (Polynomial 4th)", linewidth=2)
-
-plt.xlabel("Time [s]")
-plt.ylabel("HP")
-plt.title("NH HP: Original vs Interpolated vs Smoothed vs Spline vs Polynomial")
-plt.legend()
-plt.grid(True)
-
-plt.savefig(f"./{dirname}/NH_HP_fit_spline_polynomial_comparison.png")
-#plt.show()
-
-print("比較グラフを保存しました:", f"./{dirname}/NH_HP_fit_spline_polynomial_comparison.png")
+        # 残差グラフ
+        plot_residual(result,
+                      f"{cond} HP Residuals",
+                      f"./{dirname}/{cond}_HP_residuals.png")
